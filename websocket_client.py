@@ -2,6 +2,7 @@ import json
 import threading
 import websocket
 
+from state import watch_symbols
 from config import BASE_WS
 from price_manager import update_price
 

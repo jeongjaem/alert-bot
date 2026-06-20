@@ -1,22 +1,18 @@
 import time
 
 from scanner import get_top_futures
-from websocket_client import start
-
-from state import watch_symbols
-
 from candles import load_initial_candles
-
+from websocket_client import start
 from strategy import analyze
-
 from price_manager import get_price
+from state import watch_symbols
 
 
 def refresh_watchlist():
 
-    coins = get_top_futures()
-
     watch_symbols.clear()
+
+    coins = get_top_futures()
 
     print("\n====== TOP30 ======\n")
 
@@ -43,14 +39,10 @@ def refresh_watchlist():
 
     print(f"{success}/{len(watch_symbols)} 완료")
 
-    print("\n감시 시작\n")
+    print("\nWebSocket 연결중...\n")
 
 
-if __name__ == "__main__":
-
-    refresh_watchlist()
-
-    start()
+def monitor():
 
     while True:
 
@@ -68,7 +60,7 @@ if __name__ == "__main__":
 
             if result["near_ma"]:
 
-                print("=" * 60)
+                print("=" * 70)
 
                 print(f"🚨 {symbol}")
 
@@ -85,3 +77,14 @@ if __name__ == "__main__":
                 print(f"하락률 : {result['drop']:.2f}%")
 
         time.sleep(15)
+
+
+if __name__ == "__main__":
+
+    refresh_watchlist()
+
+    start()
+
+    time.sleep(3)
+
+    monitor()
