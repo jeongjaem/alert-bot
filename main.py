@@ -1,7 +1,8 @@
 import time
+from datetime import datetime
 
 from scanner import get_top_futures
-from candles import load_initial_candles
+from candles import load_initial_candles, update_recent_candles
 from websocket_client import start
 from strategy import analyze
 from price_manager import get_price
@@ -11,6 +12,7 @@ from config import ALERT_COOLDOWN
 
 def refresh_watchlist():
     watch_symbols.clear()
+
     coins = get_top_futures()
 
     print("\n====== TOP30 ======\n")
@@ -33,8 +35,34 @@ def refresh_watchlist():
     print("\nWebSocket 연결중...\n")
 
 
+def update_candles_if_needed(last_candle_update):
+    now = datetime.now()
+
+    if now.minute % 5 == 0 and now.second < 10:
+        key = now.strftime("%Y-%m-%d %H:%M")
+
+        if last_candle_update != key:
+            print("\n5분봉 갱신 중...")
+
+            success = 0
+
+            for symbol in watch_symbols:
+                if update_recent_candles(symbol):
+                    success += 1
+
+            print(f"5분봉 갱신 완료: {success}/{len(watch_symbols)}\n")
+
+            return key
+
+    return last_candle_update
+
+
 def monitor():
+    last_candle_update = None
+
     while True:
+        last_candle_update = update_candles_if_needed(last_candle_update)
+
         for symbol in watch_symbols:
             price = get_price(symbol)
 
