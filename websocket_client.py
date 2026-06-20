@@ -1,10 +1,11 @@
 import json
 import threading
+import time
 import websocket
 
-from state import watch_symbols
 from config import BASE_WS
 from price_manager import update_price
+from state import watch_symbols
 
 
 ws = None
@@ -14,36 +15,29 @@ def on_open(ws):
     print("✅ WebSocket 연결 성공")
 
     for symbol in watch_symbols:
-
         msg = {
             "method": "sub.ticker",
             "param": {
                 "symbol": symbol
             }
         }
-
         ws.send(json.dumps(msg))
 
     print(f"{len(watch_symbols)}개 코인 구독 완료")
 
 
 def on_message(ws, message):
-
     try:
-
         data = json.loads(message)
 
-        # 문자열이 오면 무시
         if isinstance(data, str):
             return
 
-        # dict가 아니면 무시
         if not isinstance(data, dict):
             return
 
         d = data.get("data")
 
-        # data가 dict가 아니면 무시
         if not isinstance(d, dict):
             return
 
@@ -54,7 +48,7 @@ def on_message(ws, message):
             update_price(symbol, price)
 
     except Exception as e:
-        print("WebSocket:", e)
+        print("WebSocket 메시지 오류:", e)
 
 
 def on_error(ws, error):
@@ -65,8 +59,20 @@ def on_close(ws, code, msg):
     print("WebSocket 종료")
 
 
-def start():
+def ping_loop():
+    global ws
 
+    while True:
+        try:
+            if ws:
+                ws.send(json.dumps({"method": "ping"}))
+        except Exception:
+            pass
+
+        time.sleep(15)
+
+
+def start():
     global ws
 
     ws = websocket.WebSocketApp(
@@ -78,9 +84,11 @@ def start():
     )
 
     threading.Thread(
-    target=lambda: ws.run_forever(
-        ping_interval=20,
-        ping_timeout=10
-    ),
-    daemon=True
-).start()
+        target=ws.run_forever,
+        daemon=True
+    ).start()
+
+    threading.Thread(
+        target=ping_loop,
+        daemon=True
+    ).start()
