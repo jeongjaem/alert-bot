@@ -6,6 +6,8 @@ from websocket_client import start
 from strategy import analyze
 from price_manager import get_price
 from state import watch_symbols
+from state import last_alert
+from config import ALERT_COOLDOWN
 
 
 def refresh_watchlist():
