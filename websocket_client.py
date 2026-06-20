@@ -9,10 +9,16 @@ from state import watch_symbols
 
 
 ws = None
+running = False
 
 
-def on_open(ws):
-    print("✅ WebSocket 연결 성공")
+def subscribe_symbols():
+    global ws
+
+    if ws is None:
+        return
+
+    count = 0
 
     for symbol in watch_symbols:
         msg = {
@@ -21,12 +27,22 @@ def on_open(ws):
                 "symbol": symbol
             }
         }
-        ws.send(json.dumps(msg))
 
-    print(f"{len(watch_symbols)}개 코인 구독 완료")
+        try:
+            ws.send(json.dumps(msg))
+            count += 1
+        except Exception as e:
+            print("구독 실패:", symbol, e)
+
+    print(f"{count}개 코인 구독 완료")
 
 
-def on_message(ws, message):
+def on_open(socket):
+    print("✅ WebSocket 연결 성공")
+    subscribe_symbols()
+
+
+def on_message(socket, message):
     try:
         data = json.loads(message)
 
@@ -51,11 +67,11 @@ def on_message(ws, message):
         print("WebSocket 메시지 오류:", e)
 
 
-def on_error(ws, error):
+def on_error(socket, error):
     print("WebSocket 오류 :", error)
 
 
-def on_close(ws, code, msg):
+def on_close(socket, code, msg):
     print("WebSocket 종료")
 
 
@@ -72,19 +88,35 @@ def ping_loop():
         time.sleep(15)
 
 
-def start():
-    global ws
+def websocket_loop():
+    global ws, running
 
-    ws = websocket.WebSocketApp(
-        BASE_WS,
-        on_open=on_open,
-        on_message=on_message,
-        on_error=on_error,
-        on_close=on_close
-    )
+    while running:
+        ws = websocket.WebSocketApp(
+            BASE_WS,
+            on_open=on_open,
+            on_message=on_message,
+            on_error=on_error,
+            on_close=on_close
+        )
+
+        ws.run_forever()
+
+        if running:
+            print("WebSocket 5초 후 재연결")
+            time.sleep(5)
+
+
+def start():
+    global running
+
+    if running:
+        return
+
+    running = True
 
     threading.Thread(
-        target=ws.run_forever,
+        target=websocket_loop,
         daemon=True
     ).start()
 
@@ -92,3 +124,17 @@ def start():
         target=ping_loop,
         daemon=True
     ).start()
+
+
+def resubscribe():
+    global ws
+
+    print("\nWebSocket 재구독 중...")
+
+    if ws:
+        try:
+            ws.close()
+        except Exception:
+            pass
+
+    print("WebSocket 재연결 대기\n")

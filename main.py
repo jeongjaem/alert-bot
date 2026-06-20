@@ -3,11 +3,14 @@ from datetime import datetime
 
 from scanner import get_top_futures
 from candles import load_initial_candles, update_recent_candles
-from websocket_client import start
+from websocket_client import start, resubscribe
 from strategy import analyze
 from price_manager import get_price
 from state import watch_symbols, last_alert
-from config import ALERT_COOLDOWN
+from config import (
+    ALERT_COOLDOWN,
+    REFRESH_HOURS,
+)
 
 
 def refresh_watchlist():
@@ -21,7 +24,11 @@ def refresh_watchlist():
         symbol = coin["symbol"]
         watch_symbols.append(symbol)
 
-        print(f"{i:2d}. {symbol:<20}{coin['gain']:.2f}%")
+        print(
+            f"{i:2d}. "
+            f"{symbol:<20}"
+            f"{coin['gain']:.2f}%"
+        )
 
     print("\n공식 5분봉 다운로드...\n")
 
@@ -32,17 +39,16 @@ def refresh_watchlist():
             success += 1
 
     print(f"{success}/{len(watch_symbols)} 완료")
-    print("\nWebSocket 연결중...\n")
 
 
-def update_candles_if_needed(last_candle_update):
+def update_candles_if_needed(last_update):
     now = datetime.now()
 
     if now.minute % 5 == 0 and now.second < 10:
         key = now.strftime("%Y-%m-%d %H:%M")
 
-        if last_candle_update != key:
-            print("\n5분봉 갱신 중...")
+        if key != last_update:
+            print("\n====== 5분봉 갱신 ======\n")
 
             success = 0
 
@@ -50,18 +56,49 @@ def update_candles_if_needed(last_candle_update):
                 if update_recent_candles(symbol):
                     success += 1
 
-            print(f"5분봉 갱신 완료: {success}/{len(watch_symbols)}\n")
+            print(
+                f"5분봉 갱신 완료 "
+                f"{success}/{len(watch_symbols)}\n"
+            )
 
             return key
 
-    return last_candle_update
+    return last_update
+
+
+def update_top30_if_needed(last_refresh):
+    now = datetime.now()
+
+    if (
+        now.hour in REFRESH_HOURS
+        and now.minute == 0
+        and now.second < 10
+    ):
+        key = now.strftime("%Y-%m-%d %H")
+
+        if key != last_refresh:
+            print("\n====== TOP30 자동 갱신 ======\n")
+
+            refresh_watchlist()
+            resubscribe()
+
+            return key
+
+    return last_refresh
 
 
 def monitor():
     last_candle_update = None
+    last_top30_refresh = None
 
     while True:
-        last_candle_update = update_candles_if_needed(last_candle_update)
+        last_candle_update = update_candles_if_needed(
+            last_candle_update
+        )
+
+        last_top30_refresh = update_top30_if_needed(
+            last_top30_refresh
+        )
 
         for symbol in watch_symbols:
             price = get_price(symbol)
@@ -74,23 +111,25 @@ def monitor():
             if result is None:
                 continue
 
-            if result["near_ma"]:
-                now = time.time()
+            if not result["near_ma"]:
+                continue
 
-                if symbol in last_alert:
-                    if now - last_alert[symbol] < ALERT_COOLDOWN:
-                        continue
+            now = time.time()
 
-                last_alert[symbol] = now
+            if symbol in last_alert:
+                if now - last_alert[symbol] < ALERT_COOLDOWN:
+                    continue
 
-                print("=" * 70)
-                print(f"🚨 {symbol}")
-                print(f"현재가 : {price}")
-                print(f"MA60 : {result['ma60']:.6f}")
-                print(f"거리 : {result['distance']:.3f}%")
-                print(f"고점 : {result['high']}")
-                print(f"저점 : {result['low']}")
-                print(f"하락률 : {result['drop']:.2f}%")
+            last_alert[symbol] = now
+
+            print("=" * 70)
+            print(f"🚨 {symbol}")
+            print(f"현재가 : {price}")
+            print(f"MA60 : {result['ma60']:.12g}")
+            print(f"거리 : {result['distance']:.3f}%")
+            print(f"고점 : {result['high']}")
+            print(f"저점 : {result['low']}")
+            print(f"하락률 : {result['drop']:.2f}%")
 
         time.sleep(15)
 
