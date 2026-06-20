@@ -5,28 +5,21 @@ BASE_URL = "https://api.mexc.com"
 
 
 def get_symbols():
-    """USDT 현물 코인 목록 가져오기"""
     url = f"{BASE_URL}/api/v3/exchangeInfo"
-
-    data = requests.get(url, timeout=10).json()
+    data = requests.get(url, timeout=15).json()
 
     symbols = []
 
-    for s in data["symbols"]:
-        if (
-            s["quoteAsset"] == "USDT"
-            and s["status"] == "ENABLED"
-        ):
-            symbols.append(s["symbol"])
+    for s in data.get("symbols", []):
+        symbol = s.get("symbol", "")
+
+        if symbol.endswith("USDT"):
+            symbols.append(symbol)
 
     return symbols
 
 
 def get_klines(symbol):
-    """
-    최근 6시간(72개 5분봉)
-    """
-
     url = f"{BASE_URL}/api/v3/klines"
 
     params = {
@@ -35,44 +28,35 @@ def get_klines(symbol):
         "limit": 73
     }
 
-    r = requests.get(url, params=params, timeout=10)
-
-    return r.json()
+    data = requests.get(url, params=params, timeout=15).json()
+    return data
 
 
 def calc_gain(candles):
-    """
-    최근 6시간 상승률
-    """
+    if not isinstance(candles, list):
+        return None
 
     if len(candles) < 73:
         return None
 
-    start = float(candles[0][4])
-    end = float(candles[-1][4])
+    start_price = float(candles[0][4])
+    end_price = float(candles[-1][4])
 
-    if start == 0:
+    if start_price <= 0:
         return None
 
-    return ((end - start) / start) * 100
+    return ((end_price - start_price) / start_price) * 100
 
 
 def scan_top30():
-
     symbols = get_symbols()
-
     result = []
 
-    total = len(symbols)
+    print(f"총 {len(symbols)}개 코인 스캔 시작\n")
 
-    print(f"총 {total}개 코인 스캔 시작\n")
-
-    for idx, symbol in enumerate(symbols):
-
+    for idx, symbol in enumerate(symbols, 1):
         try:
-
             candles = get_klines(symbol)
-
             gain = calc_gain(candles)
 
             if gain is not None:
@@ -84,28 +68,18 @@ def scan_top30():
         except Exception:
             pass
 
-        print(f"{idx+1}/{total} 완료", end="\r")
-
+        print(f"{idx}/{len(symbols)} 완료", end="\r")
         time.sleep(0.05)
 
-    result.sort(
-        key=lambda x: x["gain"],
-        reverse=True
-    )
+    result.sort(key=lambda x: x["gain"], reverse=True)
 
     return result[:30]
 
 
 if __name__ == "__main__":
-
     top30 = scan_top30()
 
     print("\n\n====== 최근 6시간 상승률 TOP30 ======\n")
 
     for i, coin in enumerate(top30, 1):
-
-        print(
-            f"{i:2d}. "
-            f"{coin['symbol']:<15}"
-            f"{coin['gain']:.2f}%"
-        )
+        print(f"{i:2d}. {coin['symbol']:<15} {coin['gain']:.2f}%")
