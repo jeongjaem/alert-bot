@@ -4,20 +4,10 @@ from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
 
 def send_alert(message):
-
-    if (
-        TELEGRAM_BOT_TOKEN == "8947816525:AAHhdSqVlpUPes93_QxdIclY6t9TfRE4ib0"
-        or TELEGRAM_CHAT_ID == "5120651068"
-    ):
-        return
-
-    url = (
-        f"https://api.telegram.org/bot"
-        f"{TELEGRAM_BOT_TOKEN}/sendMessage"
-    )
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
     try:
-        requests.post(
+        r = requests.post(
             url,
             json={
                 "chat_id": TELEGRAM_CHAT_ID,
@@ -25,5 +15,13 @@ def send_alert(message):
             },
             timeout=10,
         )
+
+        if r.status_code != 200:
+            print("Telegram 전송 실패:", r.text)
+
     except Exception as e:
         print("Telegram 오류:", e)
+
+
+def send_test_alert():
+    send_alert("✅ MEXC 알림봇 테스트 성공")

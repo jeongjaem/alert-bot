@@ -143,6 +143,10 @@ def monitor():
 
 
 if __name__ == "__main__":
+    from notifier import send_test_alert
+
+    send_test_alert()
+
     refresh_watchlist()
     start()
     time.sleep(3)
