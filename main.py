@@ -11,6 +11,7 @@ from config import (
     ALERT_COOLDOWN,
     REFRESH_HOURS,
 )
+from notifier import send_alert
 
 
 def refresh_watchlist():
@@ -122,14 +123,21 @@ def monitor():
 
             last_alert[symbol] = now
 
+            message = (
+                f"🚨 MEXC 재반등 알림\n\n"
+                f"코인 : {symbol}\n"
+                f"현재가 : {price}\n"
+                f"MA60 : {result['ma60']:.12g}\n"
+                f"거리 : {result['distance']:.3f}%\n\n"
+                f"고점 : {result['high']}\n"
+                f"저점 : {result['low']}\n"
+                f"하락률 : {result['drop']:.2f}%"
+            )
+
             print("=" * 70)
-            print(f"🚨 {symbol}")
-            print(f"현재가 : {price}")
-            print(f"MA60 : {result['ma60']:.12g}")
-            print(f"거리 : {result['distance']:.3f}%")
-            print(f"고점 : {result['high']}")
-            print(f"저점 : {result['low']}")
-            print(f"하락률 : {result['drop']:.2f}%")
+            print(message)
+
+            send_alert(message)
 
         time.sleep(15)
 
