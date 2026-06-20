@@ -3,7 +3,7 @@ import threading
 import websocket
 
 from config import BASE_WS
-from state import latest_price, watch_symbols
+from price_manager import update_price
 
 
 ws = None
@@ -41,7 +41,7 @@ def on_message(ws, message):
         price = d.get("lastPrice")
 
         if symbol and price:
-            latest_price[symbol] = float(price)
+            update_price(symbol, price)
 
     except Exception as e:
         print(e)
