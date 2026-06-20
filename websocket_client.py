@@ -78,6 +78,9 @@ def start():
     )
 
     threading.Thread(
-        target=ws.run_forever,
-        daemon=True
-    ).start()
+    target=lambda: ws.run_forever(
+        ping_interval=20,
+        ping_timeout=10
+    ),
+    daemon=True
+).start()
