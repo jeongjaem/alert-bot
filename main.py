@@ -1,3 +1,6 @@
+from websocket_client import start
+from state import latest_price
+import time
 from scanner import get_top_futures
 from state import watch_symbols
 
@@ -25,4 +28,17 @@ def refresh_watchlist():
 
 if __name__ == "__main__":
 
-    refresh_watchlist()
+    refresh_watchlist()   # TOP30 가져오기
+
+    start()               # WebSocket 시작
+
+    while True:
+
+        print("-------------------------")
+
+        for symbol in watch_symbols[:5]:
+
+            if symbol in latest_price:
+                print(symbol, latest_price[symbol])
+
+        time.sleep(5)
