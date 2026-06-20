@@ -33,10 +33,19 @@ def on_message(ws, message):
 
         data = json.loads(message)
 
-        if "data" not in data:
+        # 문자열이 오면 무시
+        if isinstance(data, str):
             return
 
-        d = data["data"]
+        # dict가 아니면 무시
+        if not isinstance(data, dict):
+            return
+
+        d = data.get("data")
+
+        # data가 dict가 아니면 무시
+        if not isinstance(d, dict):
+            return
 
         symbol = d.get("symbol")
         price = d.get("lastPrice")
@@ -45,7 +54,7 @@ def on_message(ws, message):
             update_price(symbol, price)
 
     except Exception as e:
-        print(e)
+        print("WebSocket:", e)
 
 
 def on_error(ws, error):
