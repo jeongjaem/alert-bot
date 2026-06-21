@@ -6,11 +6,8 @@ from candles import load_initial_candles, update_recent_candles
 from websocket_client import start, resubscribe
 from strategy import analyze
 from price_manager import get_price
-from state import watch_symbols, last_alert
-from config import (
-    ALERT_COOLDOWN,
-    REFRESH_HOURS,
-)
+from state import watch_symbols, inside_ma
+from config import REFRESH_HOURS
 from notifier import send_alert
 
 
@@ -88,6 +85,24 @@ def update_top30_if_needed(last_refresh):
     return last_refresh
 
 
+def send_rebound_alert(symbol, price, result):
+    message = (
+        f"🚨 재반등 알림\n\n"
+        f"코인 : {symbol}\n"
+        f"현재가 : {price}\n"
+        f"MA60 : {result['ma60']:.12g}\n"
+        f"거리 : {result['distance']:.3f}%\n\n"
+        f"고점 : {result['high']}\n"
+        f"저점 : {result['low']}\n"
+        f"하락률 : {result['drop']:.2f}%"
+    )
+
+    print("=" * 70)
+    print(message)
+
+    send_alert(message)
+
+
 def monitor():
     last_candle_update = None
     last_top30_refresh = None
@@ -110,34 +125,19 @@ def monitor():
             result = analyze(symbol, price)
 
             if result is None:
+                inside_ma[symbol] = False
                 continue
 
             if not result["near_ma"]:
+                inside_ma[symbol] = False
                 continue
 
-            now = time.time()
+            if inside_ma.get(symbol, False):
+                continue
 
-            if symbol in last_alert:
-                if now - last_alert[symbol] < ALERT_COOLDOWN:
-                    continue
+            inside_ma[symbol] = True
 
-            last_alert[symbol] = now
-
-            message = (
-                f"🚨 재반등 알림\n\n"
-                f"코인 : {symbol}\n"
-                f"현재가 : {price}\n"
-                f"MA60 : {result['ma60']:.12g}\n"
-                f"거리 : {result['distance']:.3f}%\n\n"
-                f"고점 : {result['high']}\n"
-                f"저점 : {result['low']}\n"
-                f"하락률 : {result['drop']:.2f}%"
-            )
-
-            print("=" * 70)
-            print(message)
-
-            send_alert(message)
+            send_rebound_alert(symbol, price, result)
 
         time.sleep(15)
 
