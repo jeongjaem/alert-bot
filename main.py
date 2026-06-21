@@ -124,7 +124,7 @@ def monitor():
             last_alert[symbol] = now
 
             message = (
-                f"🚨 MEXC 재반등 알림\n\n"
+                f"🚨 재반등 알림\n\n"
                 f"코인 : {symbol}\n"
                 f"현재가 : {price}\n"
                 f"MA60 : {result['ma60']:.12g}\n"
@@ -143,10 +143,6 @@ def monitor():
 
 
 if __name__ == "__main__":
-    from notifier import send_test_alert
-
-    send_test_alert()
-
     refresh_watchlist()
     start()
     time.sleep(3)
