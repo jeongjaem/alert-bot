@@ -6,8 +6,8 @@ from candles import load_initial_candles, update_recent_candles
 from websocket_client import start, resubscribe
 from strategy import analyze
 from price_manager import get_price
-from state import watch_symbols, inside_ma
-from config import REFRESH_HOURS
+from state import watch_symbols, last_alert
+from config import ALERT_COOLDOWN, REFRESH_HOURS
 from notifier import send_alert
 
 
@@ -22,11 +22,7 @@ def refresh_watchlist():
         symbol = coin["symbol"]
         watch_symbols.append(symbol)
 
-        print(
-            f"{i:2d}. "
-            f"{symbol:<20}"
-            f"{coin['gain']:.2f}%"
-        )
+        print(f"{i:2d}. {symbol:<20}{coin['gain']:.2f}%")
 
     print("\n공식 5분봉 다운로드...\n")
 
@@ -54,10 +50,7 @@ def update_candles_if_needed(last_update):
                 if update_recent_candles(symbol):
                     success += 1
 
-            print(
-                f"5분봉 갱신 완료 "
-                f"{success}/{len(watch_symbols)}\n"
-            )
+            print(f"5분봉 갱신 완료 {success}/{len(watch_symbols)}\n")
 
             return key
 
@@ -108,13 +101,8 @@ def monitor():
     last_top30_refresh = None
 
     while True:
-        last_candle_update = update_candles_if_needed(
-            last_candle_update
-        )
-
-        last_top30_refresh = update_top30_if_needed(
-            last_top30_refresh
-        )
+        last_candle_update = update_candles_if_needed(last_candle_update)
+        last_top30_refresh = update_top30_if_needed(last_top30_refresh)
 
         for symbol in watch_symbols:
             price = get_price(symbol)
@@ -125,17 +113,18 @@ def monitor():
             result = analyze(symbol, price)
 
             if result is None:
-                inside_ma[symbol] = False
                 continue
 
             if not result["near_ma"]:
-                inside_ma[symbol] = False
                 continue
 
-            if inside_ma.get(symbol, False):
+            now = time.time()
+            last_time = last_alert.get(symbol, 0)
+
+            if now - last_time < ALERT_COOLDOWN:
                 continue
 
-            inside_ma[symbol] = True
+            last_alert[symbol] = now
 
             send_rebound_alert(symbol, price, result)
 
