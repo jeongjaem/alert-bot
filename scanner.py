@@ -1,6 +1,9 @@
 import requests
 
-from config import BASE_HTTP, TOP_COUNT
+from config import BASE_HTTP
+
+
+MIN_VOLUME = 1_000_000
 
 
 def get_top_futures():
@@ -21,7 +24,6 @@ def get_top_futures():
         if not symbol.endswith("_USDT"):
             continue
 
-        # 선물 티커에 필수로 있어야 하는 값
         if "riseFallRate" not in coin:
             continue
 
@@ -31,18 +33,23 @@ def get_top_futures():
         try:
             gain = float(coin["riseFallRate"]) * 100
             last_price = float(coin["lastPrice"])
+
+            # 24시간 거래대금(USDT)
+            volume = float(coin.get("amount24", 0))
+
         except Exception:
+            continue
+
+        if volume < MIN_VOLUME:
             continue
 
         result.append({
             "symbol": symbol,
             "gain": gain,
             "last_price": last_price,
+            "volume": volume,
         })
 
-    result.sort(
-        key=lambda x: x["gain"],
-        reverse=True
-    )
+    print(f"\n거래량 1M 이상 : {len(result)}개")
 
-    return result[:TOP_COUNT]
+    return result

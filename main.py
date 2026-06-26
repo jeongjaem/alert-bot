@@ -16,23 +16,43 @@ def refresh_watchlist():
 
     coins = get_top_futures()
 
-    print("\n====== TOP30 ======\n")
+    print("\n====== 거래량 1M 이상 선물 코인 ======\n")
+    print(f"대상 후보 : {len(coins)}개")
 
-    for i, coin in enumerate(coins, 1):
+    print("\n공식 5분봉 다운로드 + 10% 눌림 조건 검사...\n")
+
+    candle_success = 0
+    candidate_count = 0
+
+    for coin in coins:
         symbol = coin["symbol"]
+
+        if not load_initial_candles(symbol):
+            continue
+
+        candle_success += 1
+
+        price = coin["last_price"]
+
+        result = analyze(symbol, price)
+
+        if result is None:
+            continue
+
         watch_symbols.append(symbol)
+        candidate_count += 1
 
-        print(f"{i:2d}. {symbol:<20}{coin['gain']:.2f}%")
+        print(
+            f"{candidate_count:2d}. "
+            f"{symbol:<20}"
+            f"거래대금: {coin['volume']:,.0f} "
+            f"하락률: {result['drop']:.2f}% "
+            f"MA거리: {result['distance']:.3f}%"
+        )
 
-    print("\n공식 5분봉 다운로드...\n")
-
-    success = 0
-
-    for symbol in watch_symbols:
-        if load_initial_candles(symbol):
-            success += 1
-
-    print(f"{success}/{len(watch_symbols)} 완료")
+    print("\n====== 감시 대상 선정 완료 ======\n")
+    print(f"캔들 다운로드 성공 : {candle_success}/{len(coins)}")
+    print(f"10% 눌림 조건 만족 : {len(watch_symbols)}개")
 
 
 def update_candles_if_needed(last_update):
@@ -49,6 +69,8 @@ def update_candles_if_needed(last_update):
             for symbol in watch_symbols:
                 if update_recent_candles(symbol):
                     success += 1
+                else:
+                    print(f"❌ 5분봉 갱신 실패 : {symbol}")
 
             print(f"5분봉 갱신 완료 {success}/{len(watch_symbols)}\n")
 
@@ -57,18 +79,17 @@ def update_candles_if_needed(last_update):
     return last_update
 
 
-def update_top30_if_needed(last_refresh):
+def update_watchlist_if_needed(last_refresh):
     now = datetime.now()
 
     if (
-        now.hour in REFRESH_HOURS
-        and now.minute == 0
+        now.minute in (0, 30)
         and now.second < 10
     ):
-        key = now.strftime("%Y-%m-%d %H")
+        key = now.strftime("%Y-%m-%d %H:%M")
 
         if key != last_refresh:
-            print("\n====== TOP30 자동 갱신 ======\n")
+            print("\n====== 감시 대상 자동 갱신 ======\n")
 
             refresh_watchlist()
             resubscribe()
@@ -76,7 +97,6 @@ def update_top30_if_needed(last_refresh):
             return key
 
     return last_refresh
-
 
 def send_rebound_alert(symbol, price, result):
     message = (
@@ -98,11 +118,13 @@ def send_rebound_alert(symbol, price, result):
 
 def monitor():
     last_candle_update = None
-    last_top30_refresh = None
+    last_watchlist_refresh = None
 
     while True:
         last_candle_update = update_candles_if_needed(last_candle_update)
-        last_top30_refresh = update_top30_if_needed(last_top30_refresh)
+        last_watchlist_refresh = update_watchlist_if_needed(
+            last_watchlist_refresh
+        )
 
         for symbol in watch_symbols:
             price = get_price(symbol)
