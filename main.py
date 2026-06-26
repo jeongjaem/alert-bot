@@ -118,6 +118,18 @@ def monitor():
             if not result["near_ma"]:
                 continue
 
+            # 알림 직전에 공식 5분봉 72개를 다시 받아서 재검증
+            if not load_initial_candles(symbol):
+                continue
+
+            result = analyze(symbol, price)
+
+            if result is None:
+                continue
+
+            if not result["near_ma"]:
+                continue
+
             now = time.time()
             last_time = last_alert.get(symbol, 0)
 
