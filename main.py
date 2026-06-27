@@ -6,14 +6,14 @@ from candles import load_initial_candles, update_recent_candles
 from websocket_client import start, resubscribe
 from strategy import analyze
 from price_manager import get_price
-from state import watch_symbols, last_alert
-from config import ALERT_COOLDOWN, REFRESH_HOURS
+from state import watch_symbols, volume_symbols, last_alert
+from config import ALERT_COOLDOWN
 from notifier import send_alert
 
 
 def refresh_watchlist():
+    volume_symbols.clear()
     watch_symbols.clear()
-
     coins = get_top_futures()
 
     print("\n====== 거래량 1M 이상 선물 코인 ======\n")
@@ -33,6 +33,8 @@ def refresh_watchlist():
         candle_success += 1
 
         price = coin["last_price"]
+
+        volume_symbols.append(symbol)
 
         result = analyze(symbol, price)
 
@@ -66,13 +68,15 @@ def update_candles_if_needed(last_update):
 
             success = 0
 
-            for symbol in watch_symbols:
+            for symbol in volume_symbols:
                 if update_recent_candles(symbol):
                     success += 1
                 else:
                     print(f"❌ 5분봉 갱신 실패 : {symbol}")
 
-            print(f"5분봉 갱신 완료 {success}/{len(watch_symbols)}\n")
+            print(f"5분봉 갱신 완료 {success}/{len(volume_symbols)}\n")
+
+            rebuild_watchlist()
 
             return key
 
@@ -163,6 +167,33 @@ def monitor():
             send_rebound_alert(symbol, price, result)
 
         time.sleep(5)
+
+def rebuild_watchlist():
+
+    new_watch = []
+
+    for symbol in volume_symbols:
+
+        price = get_price(symbol)
+
+        if price is None:
+            continue
+
+        result = analyze(symbol, price)
+
+        if result is None:
+            continue
+
+        new_watch.append(symbol)
+
+    if set(new_watch) != set(watch_symbols):
+
+        watch_symbols.clear()
+        watch_symbols.extend(new_watch)
+
+        print(f"\n감시대상 변경 : {len(watch_symbols)}개")
+
+        resubscribe()
 
 
 if __name__ == "__main__":

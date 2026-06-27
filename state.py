@@ -6,3 +6,5 @@ inside_ma = {}
 watch_symbols = []
 
 latest_price = {}
+
+volume_symbols = []
