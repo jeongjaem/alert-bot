@@ -58,7 +58,7 @@ def refresh_watchlist():
 def update_candles_if_needed(last_update):
     now = datetime.now()
 
-    if now.minute % 5 == 0 and now.second < 10:
+    if now.minute % 5 == 0:
         key = now.strftime("%Y-%m-%d %H:%M")
 
         if key != last_update:
@@ -84,7 +84,6 @@ def update_watchlist_if_needed(last_refresh):
 
     if (
         now.minute in (0, 30)
-        and now.second < 10
     ):
         key = now.strftime("%Y-%m-%d %H:%M")
 
@@ -163,7 +162,7 @@ def monitor():
 
             send_rebound_alert(symbol, price, result)
 
-        time.sleep(15)
+        time.sleep(5)
 
 
 if __name__ == "__main__":
