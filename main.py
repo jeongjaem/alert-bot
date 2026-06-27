@@ -95,7 +95,7 @@ def update_watchlist_if_needed(last_refresh):
             print("\n====== 감시 대상 자동 갱신 ======\n")
 
             refresh_watchlist()
-            resubscribe()
+            rebuild_watchlist()
 
             return key
 
