@@ -141,7 +141,8 @@ def monitor():
                 continue
 
             # 알림 직전에 공식 5분봉 72개를 다시 받아서 재검증
-            if not load_initial_candles(symbol):
+            # 알림 직전에 최근 공식 5분봉만 갱신 후 재검증
+            if not update_recent_candles(symbol):
                 continue
 
             result = analyze(symbol, price)
